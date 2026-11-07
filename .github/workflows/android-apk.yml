@@ -1,0 +1,56 @@
+
+name: Eternal Clash Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'EternalClash_Unity_Starter_v2.zip'
+      - '.github/workflows/android-apk.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract Unity project
+        run: |
+          mkdir -p build-source
+          unzip -q EternalClash_Unity_Starter_v2.zip -d build-source
+          test -d build-source/EternalClash_Unity_Starter/Assets
+          mkdir -p build-source/EternalClash_Unity_Starter/ProjectSettings
+          mkdir -p build-source/EternalClash_Unity_Starter/Packages
+          echo "m_EditorVersion: 2022.3.62f1" > build-source/EternalClash_Unity_Starter/ProjectSettings/ProjectVersion.txt
+          cat > build-source/EternalClash_Unity_Starter/Packages/manifest.json <<'EOF'
+          {
+            "dependencies": {
+              "com.unity.modules.ai": "1.0.0",
+              "com.unity.modules.animation": "1.0.0",
+              "com.unity.modules.physics": "1.0.0",
+              "com.unity.modules.ui": "1.0.0"
+            }
+          }
+          EOF
+
+      - name: Build Android
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          projectPath: build-source/EternalClash_Unity_Starter
+          unityVersion: 2022.3.62f1
+          targetPlatform: Android
+          buildsPath: build
+          buildName: EternalClash
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EternalClash-Android-APK
+          path: build/Android
+          if-no-files-found: error
