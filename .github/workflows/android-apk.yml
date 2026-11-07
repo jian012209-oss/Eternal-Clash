@@ -19,14 +19,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Extract Unity project
+        id: prepare
+        shell: bash
         run: |
+          set -euxo pipefail
           mkdir -p build-source
           unzip -q EternalClash_Unity_Starter_v2.zip -d build-source
-          test -d build-source/EternalClash_Unity_Starter/Assets
-          mkdir -p build-source/EternalClash_Unity_Starter/ProjectSettings
-          mkdir -p build-source/EternalClash_Unity_Starter/Packages
-          echo "m_EditorVersion: 2022.3.62f1" > build-source/EternalClash_Unity_Starter/ProjectSettings/ProjectVersion.txt
-          cat > build-source/EternalClash_Unity_Starter/Packages/manifest.json <<'EOF'
+          ASSETS_DIR="$(find build-source -type d -name Assets -print -quit)"
+          test -n "$ASSETS_DIR"
+          PROJECT_PATH="$(dirname "$ASSETS_DIR")"
+          mkdir -p "$PROJECT_PATH/ProjectSettings" "$PROJECT_PATH/Packages"
+          echo "m_EditorVersion: 2022.3.62f1" > "$PROJECT_PATH/ProjectSettings/ProjectVersion.txt"
+          cat > "$PROJECT_PATH/Packages/manifest.json" <<'EOF'
           {
             "dependencies": {
               "com.unity.modules.ai": "1.0.0",
@@ -36,13 +40,14 @@ jobs:
             }
           }
           EOF
+          echo "project_path=$PROJECT_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Build Android
         uses: game-ci/unity-builder@v4
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          projectPath: build-source/EternalClash_Unity_Starter
+          projectPath: ${{ steps.prepare.outputs.project_path }}
           unityVersion: 2022.3.62f1
           targetPlatform: Android
           buildsPath: build
